@@ -31,3 +31,4 @@ Unidecode
 urllib3
 watchdog
 zipp
+inference_sdk
