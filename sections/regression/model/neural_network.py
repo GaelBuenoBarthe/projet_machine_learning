@@ -1,5 +1,7 @@
 import pandas as pd
 import keras
+import numpy as np
+import plotly.graph_objects as go
 from keras import Sequential
 from keras import layers
 from sklearn.model_selection import train_test_split
@@ -42,3 +44,43 @@ def build_and_train_nn(X_train, y_train, hidden_layers, neurons_per_layer, epoch
 
     return model, history
 
+
+# Fonction pour dessiner la structure du réseau de neurones
+def draw_nn(layers, neurons_per_layer):
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    # Positionner les neurones
+    x_positions = range(len(layers))
+    for i, layer in enumerate(layers):
+        y_positions = np.linspace(-1, 1, neurons_per_layer[i])
+        for y in y_positions:
+            fig.add_trace(go.Scatter(
+                x=[x_positions[i]],
+                y=[y],
+                mode="markers",
+                marker=dict(size=20, color="blue"),
+                name=f"Layer {i + 1}"
+            ))
+
+            # Ajouter des connexions
+            if i > 0:
+                prev_y_positions = np.linspace(-1, 1, neurons_per_layer[i - 1])
+                for prev_y in prev_y_positions:
+                    fig.add_trace(go.Scatter(
+                        x=[x_positions[i - 1], x_positions[i]],
+                        y=[prev_y, y],
+                        mode="lines",
+                        line=dict(color="gray", width=1),
+                        showlegend=False
+                    ))
+
+    fig.update_layout(
+        title="Structure du Réseau de Neurones",
+        xaxis=dict(title="Couches", showticklabels=False),
+        yaxis=dict(title="Neurones", showticklabels=False),
+        width=800,
+        height=600
+    )
+    return fig

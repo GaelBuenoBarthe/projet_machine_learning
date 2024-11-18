@@ -1,14 +1,18 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import time
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
+from sklearn.neural_network import MLPRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import make_regression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sections.regression.data_management.data_management import load_and_preprocess_data
 from sections.regression.data_visualization.data_visualization import visualize_preprocessed_data, visualize_data
 from sections.regression.model.model import train_and_evaluate_models, get_model
-from sections.regression.model.neural_network import build_and_train_nn
+from sections.regression.model.neural_network import draw_nn
 
 
 
@@ -158,77 +162,87 @@ def model_training_page():
 
 # Fonction de la page principale du réseau neuronal
 def neural_network_page():
-    st.title("Entraînement du Réseau de Neurones")
+    st.title("Réseau de Neurones Interactif")
 
-    # Charger et préparer les données
-    file_path = 'data/diabete.csv'  # Path vers votre dataset
-    test_size = st.slider("Choisissez la proportion de test", 0.1, 0.5, 0.2)
-    st.write(f"Ratio de test sélectionné: {test_size}")
+    # Générer des données artificielles
+    X, y = make_regression(n_samples=500, n_features=10, noise=10, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    try:
-        X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path, test_size)
-        st.write("Les données ont été prétraitées avec succès.")
-        st.write(f"Forme de X_train : {X_train.shape}")
-        st.write(f"Forme de X_test : {X_test.shape}")
-        st.write(f"Forme de y_train : {y_train.shape}")
-        st.write(f"Forme de y_test : {y_test.shape}")
-    except Exception as e:
-        st.error(f"Erreur lors du prétraitement des données: {e}")
-        return
+    # Paramètres dynamiques
+    layers = st.slider("Nombre de couches", min_value=2, max_value=10, value=3)
+    neurons_per_layer = [st.slider(f"Neurones dans la couche {i+1}", 2, 20, 5) for i in range(layers)]
+    learning_rate = st.slider("Taux d'apprentissage (learning rate)", 0.001, 0.1, 0.01, step=0.001)
+    max_iter = st.slider("Nombre d'itérations", 10, 500, 100, step=10)
 
-    # Paramètres du modèle
-    hidden_layers = st.slider("Nombre de couches cachées", 1, 5, 2)
-    neurons_per_layer = st.slider("Nombre de neurones par couche", 10, 100, 50)
-    epochs = st.slider("Nombre d'époques", 10, 200, 50)
-    batch_size = st.slider("Taille du batch", 16, 128, 32)
-    learning_rate = st.slider("Taux d'apprentissage", 0.0001, 0.01, 0.001)
+    # Afficher le réseau
+    fig = draw_nn(range(layers), neurons_per_layer)
+    st.plotly_chart(fig)
 
-    # Construction et entraînement du modèle
-    model, history = build_and_train_nn(X_train, y_train, hidden_layers, neurons_per_layer, epochs, batch_size, learning_rate)
+    # Entraînement du modèle
+    st.write("Entraînement du modèle en cours...")
+    progress_bar = st.progress(0)
 
-    # Prédictions du modèle
-    predictions = model.predict(X_test)
-    if predictions.ndim > 1:
-        predictions = predictions.ravel()
+    model = MLPRegressor(
+        hidden_layer_sizes=tuple(neurons_per_layer),
+        learning_rate_init=learning_rate,
+        max_iter=1,  # Itérations par étape
+        warm_start=True,  # Conserver les paramètres pour continuer l'entraînement
+        random_state=42
+    )
 
-    # Calcul des résidus
-    residuals = y_test - predictions
+    train_losses = []
+    test_r2_scores = []
 
-    # Calcul des métriques
-    r2 = r2_score(y_test, predictions)
-    mse = mean_squared_error(y_test, predictions)
+    for i in range(max_iter):
+        model.fit(X_train, y_train)
+        y_pred_train = model.predict(X_train)
+        y_pred_test = model.predict(X_test)
 
-    # Affichage des résultats
-    st.subheader("Résultats du Modèle")
-    st.write(f"R² (Test) : {r2}")
-    st.write(f"MSE (Test) : {mse}")
+        # Suivi des métriques
+        train_loss = mean_squared_error(y_train, y_pred_train)
+        test_r2 = r2_score(y_test, y_pred_test)
 
-    # Visualisation des courbes d'entraînement
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(history.history['loss'], label='Perte d\'Entraînement')
-    ax.plot(history.history['val_loss'], label='Perte de Validation')
-    ax.set_title('Courbes de Perte')
-    ax.set_xlabel('Époques')
-    ax.set_ylabel('Perte')
+        train_losses.append(train_loss)
+        test_r2_scores.append(test_r2)
+
+        progress_bar.progress((i + 1) / max_iter)
+
+    st.success("Entraînement terminé !")
+
+    # Résultats finaux
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    st.write(f"R² : {r2:.4f}")
+    st.write(f"MSE : {mse:.4f}")
+    st.write(f"MAE : {mae:.4f}")
+
+    # Courbe d'apprentissage
+    fig, ax = plt.subplots()
+    ax.plot(train_losses, label="Perte (loss) - Entraînement")
+    ax.plot(test_r2_scores, label="R² - Test")
+    ax.set_title("Courbe d'apprentissage")
+    ax.set_xlabel("Itérations")
+    ax.set_ylabel("Metrics")
     ax.legend()
     st.pyplot(fig)
 
-    # Visualisation des résidus
-    residuals = y_test - predictions
-    st.subheader("Distribution des Résidus")
-    plt.figure(figsize=(10, 6))
-    sns.histplot(residuals, kde=True, bins=50, color='blue')
-    plt.title('Distribution des Résidus')
-    plt.xlabel('Résidus')
-    plt.ylabel('Fréquence')
-    st.pyplot()
+    # Scatter plot : prédictions vs réalité
+    fig, ax = plt.subplots()
+    ax.scatter(y_test, y_pred, alpha=0.7)
+    ax.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')
+    ax.set_title("Prédictions vs Réalité")
+    ax.set_xlabel("Vérités terrain (y_test)")
+    ax.set_ylabel("Prédictions (y_pred)")
+    st.pyplot(fig)
 
-    # Visualisation des prédictions vs. valeurs réelles
-    st.subheader("Prédictions vs Réelles")
-    plt.figure(figsize=(10, 6))
-    plt.scatter(y_test, predictions, color='blue', alpha=0.5)
-    plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')
-    plt.title('Prédictions vs. Réelles')
-    plt.xlabel('Valeurs Réelles')
-    plt.ylabel('Prédictions')
-    st.pyplot()
+    # Histogramme des résidus
+    residuals = y_test - y_pred
+    fig, ax = plt.subplots()
+    ax.hist(residuals, bins=20, alpha=0.7, color='blue', edgecolor='black')
+    ax.set_title("Distribution des résidus")
+    ax.set_xlabel("Résidus")
+    ax.set_ylabel("Fréquence")
+    st.pyplot(fig)
