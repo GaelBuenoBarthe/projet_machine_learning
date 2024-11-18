@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import keras
 from keras import Sequential
 from keras import layers

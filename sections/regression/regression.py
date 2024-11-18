@@ -7,7 +7,7 @@ from sklearn.linear_model import Lasso, Ridge, LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sections.regression.data_management.data_management import load_and_preprocess_data
 from sections.regression.data_visualization.data_visualization import visualize_preprocessed_data, visualize_data
-from sections.regression.model.model import train_and_evaluate_models
+from sections.regression.model.model import train_and_evaluate_models, get_model
 from sections.regression.model.neural_network import build_and_train_nn
 
 
@@ -51,101 +51,110 @@ def data_management_page():
 
 
 def model_comparaison_page():
-    st.header("Comparaison des Modèles")
+    # Chargement des données
     file_path = 'data/diabete.csv'
+    X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
 
-    test_size = st.session_state.get('test_size', 0.3)
+    # Choix des modèles
+    model_choices = ['Linear Regression', 'Ridge Regression', 'Lasso Regression', 'Random Forest', 'Gradient Boosting']
 
-    X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path, test_size)
-    results_df = train_and_evaluate_models(X_train, X_test, y_train, y_test)
+    # Créer une liste pour stocker les résultats
+    model_results = []
 
-    results_df['Model'] = results_df['Model'].apply(lambda x: str(x))
+    # Affichage des réglages pour chaque modèle
+    for model_choice in model_choices:
+        with st.expander(f"Réglages pour {model_choice}"):
+            params = {}
 
-    st.subheader("Résultats des modèles")
-    st.dataframe(results_df)
+            if model_choice == 'Random Forest' or model_choice == 'Gradient Boosting':
+                params['n_estimators'] = st.slider(f'Nombre d\'estimations pour {model_choice}', min_value=10,
+                                                   max_value=500, value=100, step=10)
+            if model_choice == 'Random Forest':
+                params['max_depth'] = st.slider(f'Profondeur maximale pour {model_choice}', min_value=1, max_value=20,
+                                                value=5)
+            if model_choice == 'Gradient Boosting':
+                params['learning_rate'] = st.slider(f'Taux d\'apprentissage pour {model_choice}', min_value=0.01,
+                                                    max_value=1.0, value=0.1, step=0.01)
+            if model_choice in ['Ridge Regression', 'Lasso Regression']:
+                params['alpha'] = st.slider(f'Paramètre alpha pour {model_choice}', min_value=0.01, max_value=10.0,
+                                            value=1.0, step=0.01)
 
-    selected_model = st.selectbox("Sélectionnez un modèle pour l'entraînement", results_df['Model'].tolist())
+            # Bouton pour lancer l'entraînement du modèle
+            if st.button(f"Lancer l'entraînement pour {model_choice}"):
+                result = train_and_evaluate_models(X_train, X_test, y_train, y_test, model_choice, **params)
+                model_results.append(result)
+                st.dataframe(result)
 
-    selected_metrics = results_df[results_df['Model'] == selected_model].iloc[0]
-    st.subheader(f"Métriques pour le modèle sélectionné : {selected_model}")
-    st.write(f"R² (Test) : {selected_metrics['R² (Test)']}")
-    st.write(f"MSE (Test) : {selected_metrics['MSE (Test)']}")
+    # Résumé des performances des modèles
+    if model_results:
+        all_results = pd.concat(model_results, ignore_index=True)
+        st.write("Résumé des performances des modèles")
+        st.dataframe(all_results)
 
-    # Vérification de la disponibilité de 'MSE (CV)' et 'Mean R² (CV)'
-    if 'MSE (CV)' in selected_metrics:
-        st.write(f"MSE (CV) : {selected_metrics['MSE (CV)']}")
+        # Enregistrer le meilleur modèle en session pour l'entraînement dans la page suivante
+        best_model_row = all_results.loc[all_results['R²'].idxmax()]  # Sélectionner le modèle avec le meilleur R²
+        st.session_state.best_model = best_model_row['Model']
+        st.session_state.best_model_params = best_model_row['Best Params']
+
+        st.write(f"Le meilleur modèle sélectionné est : {st.session_state.best_model}")
+        st.write(f"Paramètres du meilleur modèle : {st.session_state.best_model_params}")
     else:
-        st.warning("MSE (CV) non calculé pour ce modèle.")
+        st.write("Aucun modèle n'a été testé.")
 
-    if 'Mean R² (CV)' in selected_metrics:
-        st.write(f"Mean R² (CV) : {selected_metrics['Mean R² (CV)']}")
-    else:
-        st.warning("Mean R² (CV) non calculé pour ce modèle.")
 
 # Page d'entraînement du modèle
 def model_training_page():
-    st.title("Entraînement du Modèle Sélectionné")
+    # Vérifier si un modèle a été sélectionné
+    if 'best_model' not in st.session_state:
+        st.warning("Aucun modèle sélectionné. Veuillez sélectionner un modèle dans la page de comparaison.")
+        return
 
-    # Demander à l'utilisateur de sélectionner un modèle
-    model_options = ["Lasso Regression", "Ridge Regression", "Linear Regression"]
-    selected_model = st.selectbox("Sélectionnez un modèle", model_options)
+    # Accéder au modèle et aux paramètres depuis la session
+    model = get_model(st.session_state.best_model, **st.session_state.best_model_params)
 
-    # Si le modèle sélectionné est Lasso Regression, demander la valeur de Alpha
-    if selected_model == "Lasso Regression":
-        selected_alpha = st.slider("Sélectionnez la valeur d'Alpha", min_value=0.001, max_value=10.0, value=0.1)
-        selected_metrics = {'Alpha': selected_alpha}
-    else:
-        selected_metrics = {}
+    # Charger les données
+    file_path = 'data/diabete.csv'
+    X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
 
-    # Vérification de la clé 'Alpha' dans selected_metrics
-    if 'Alpha' in selected_metrics:
-        alpha_value = selected_metrics['Alpha']
-    else:
-        st.error("La clé 'Alpha' n'a pas été trouvée dans selected_metrics.")
-        alpha_value = None  # Vous pouvez aussi définir une valeur par défaut ou gérer l'erreur autrement
+    best_model = st.session_state.best_model
+    best_model_params = st.session_state.best_model_params
 
-    # Si alpha_value est valide, entraîner le modèle
-    if alpha_value is not None:
-        # Charger les données
-        file_path = 'data/diabete.csv'  # Chemin vers votre fichier CSV
-        X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
+    # Entraîner le meilleur modèle avec les paramètres sélectionnés
+    st.write(f"Entraînement du modèle : {best_model} avec les paramètres : {best_model_params}")
 
-        # Sélectionner le modèle en fonction de l'utilisateur
-        if selected_model == "Lasso Regression":
-            model = Lasso(alpha=alpha_value)
-        elif selected_model == "Ridge Regression":
-            model = Ridge(alpha=alpha_value)
-        else:
-            model = LinearRegression()
+    # Entraînement du modèle
+    model.fit(X_train, y_train)
 
-        # Entraînement du modèle
-        model.fit(X_train, y_train)
+    # Prédictions et évaluation
+    y_pred = model.predict(X_test)
+    r2 = r2_score(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
 
-        # Prédictions et calcul des métriques
-        y_pred = model.predict(X_test)
-        r2 = r2_score(y_test, y_pred)
-        mse = mean_squared_error(y_test, y_pred)
-        mae = mean_absolute_error(y_test, y_pred)
+    st.write(f"R² : {r2}")
+    st.write(f"MSE : {mse}")
+    st.write(f"MAE : {mae}")
 
-        # Affichage des résultats
-        st.subheader(f"Métriques pour le modèle {selected_model}")
-        st.write(f"R² (Test): {r2}")
-        st.write(f"MSE (Test): {mse}")
-        st.write(f"MAE (Test): {mae}")
-    else:
-        st.error("Le modèle n'a pas pu être entraîné, car 'Alpha' est manquant.")
+    # Scatter Plot pour Prédictions vs Vérités Terrain
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(y_test, y_pred, color='blue', alpha=0.5, label="Prédictions")
+    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='red', linestyle='--', label="Ligne idéale")
+    ax.set_title('Prédictions vs Vérités Terrain')
+    ax.set_xlabel('Vérités Terrain (y_test)')
+    ax.set_ylabel('Prédictions (y_pred)')
+    ax.legend()
+    st.pyplot(fig)
 
-    # Afficher le graphique de comparaison
-    st.subheader("Visualisation des Prédictions")
-    plt.figure(figsize=(8, 5))
-    plt.scatter(y_test, y_pred, alpha=0.5, label='Prédictions')
-    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2, label='Égalité')
-    plt.xlabel("Valeurs Réelles")
-    plt.ylabel("Prédictions")
-    plt.title(f"{selected_model} - Valeurs Réelles vs Prédictions")
-    plt.legend()
-    st.pyplot(plt)
-
+    # Scatter Plot pour Résidus
+    residuals = y_test - y_pred
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(y_test, residuals, color='purple', alpha=0.5)
+    ax.axhline(0, color='red', linestyle='--', label="0 (Pas de Résidu)")
+    ax.set_title('Résidus vs Vérités Terrain')
+    ax.set_xlabel('Vérités Terrain (y_test)')
+    ax.set_ylabel('Résidus (y_test - y_pred)')
+    ax.legend()
+    st.pyplot(fig)
 
 # Fonction de la page principale du réseau neuronal
 def neural_network_page():
