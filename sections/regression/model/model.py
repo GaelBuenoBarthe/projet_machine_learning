@@ -1,7 +1,6 @@
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split, cross_validate, GridSearchCV
@@ -30,8 +29,6 @@ def train_and_evaluate_models(X_train, X_test, y_train, y_test):
         "Ridge Regression": make_pipeline(StandardScaler(), Ridge()),
         "Lasso Regression": make_pipeline(StandardScaler(), Lasso()),
         "ElasticNet": make_pipeline(StandardScaler(), ElasticNet()),
-        "Polynomial Regression (degree=2)": make_pipeline(StandardScaler(), PolynomialFeatures(degree=2), LinearRegression()),
-        "Decision Tree": DecisionTreeRegressor(),
         "Random Forest": RandomForestRegressor(),
         "Gradient Boosting": GradientBoostingRegressor()
     }
