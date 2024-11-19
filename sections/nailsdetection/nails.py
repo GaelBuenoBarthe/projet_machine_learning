@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageOps, ImageDraw
+from PIL import Image, ImageOps, ImageDraw, ImageFont
 from inference_sdk import InferenceHTTPClient
 import pandas as pd
 
@@ -69,10 +69,12 @@ def nail_page():
         # Création d'un bouton radio pour confiance de la prédiction
         choice = st.radio(
             "Choisissez un seuil en pourcentage pour la confiance de prédiction :",
-            ("50%", "60%", "70%", "80%")
+            ("Pas de seuil","50%", "60%", "70%", "80%", "85%", "90%")
         )
 
         # Logique basée sur le choix
+        if choice == "Pas de seuil":
+            seuil = 0
         if choice == "50%":
             seuil = 0.5
         elif choice == "60%":
@@ -81,7 +83,10 @@ def nail_page():
             seuil = 0.7
         elif choice == "80%":
             seuil = 0.8
-        
+        elif choice == "85%":
+            seuil = 0.85
+        elif choice == "90%":
+            seuil = 0.9
         
         # Créez un uploader pour les fichiers
         uploaded_file = st.file_uploader("Choisissez une image", type=["png", "jpg", "jpeg"])
@@ -147,6 +152,7 @@ def nail_page():
                                 api_key="C1QXXjGrgpWRBq8uQfS7"
                             )
                     result = GAEL.infer(processed_image_path, model_id="nails-diginamic-7syht/1")
+                    result_non_traite = GAEL.infer("geeks.jpg", model_id="nails-diginamic-7syht/1")
                 else:
                     if selected_option == "Modèle basique de Fabrice":
                         CLIENT = InferenceHTTPClient(
@@ -154,6 +160,7 @@ def nail_page():
                                 api_key="D7dNUce8UyrrxqFcplzH"
                             )
                         result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/2")
+                        result_non_traite = CLIENT.infer("geeks.jpg", model_id="nails-diginamic-el24e/2")
                     else:
                         if selected_option == "Modèle avancé de Fabrice":
                             CLIENT = InferenceHTTPClient(
@@ -161,6 +168,7 @@ def nail_page():
                                 api_key="D7dNUce8UyrrxqFcplzH"
                             )
                             result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/3")
+                            result_non_traite = CLIENT.infer("geeks.jpg", model_id="nails-diginamic-el24e/3")
                         else:
                             if selected_option == "Nouveau modèle" and input1 and input2:
                                 CLIENT = InferenceHTTPClient(
@@ -168,6 +176,7 @@ def nail_page():
                                 api_key= input1
                                 )
                                 result = CLIENT.infer(processed_image_path, model_id= input2)
+                                result_non_traite = CLIENT.infer("geeks.jpg", model_id= input2)
             except Exception as e:
                 st.write(f"Erreur lors de l'inférence block 1 : {e}, si Nouveau modèle, entrer les deux valeurs d'input")
                 
@@ -185,8 +194,6 @@ def nail_page():
                         for prediction2 in result2['predictions']:
                             confidence2 = prediction2.get('confidence', 'N/A')
                             if confidence2 > seuil : #0.5:
-                                centerX= prediction2['x']
-                                centerY= prediction2['y']
                                 st.write(f"Confiance de la prédiction Gaël : {confidence2}")
                                 if 'points' in prediction2:  # Vérifiez la présence de l'annotation polygonale
                                     points = prediction2.get('points')
@@ -197,14 +204,29 @@ def nail_page():
                                             
                                     ordered_points2 = sort_points_for_polygon(liste2)
                                     draw = ImageDraw.Draw(new_image)
-                                    # Dessine le polygone
-                                    draw.polygon(ordered_points2, None, "green")
+                                    font = ImageFont.load_default()  # Chargement d'une police par défaut
                                     
-                                    #st.write(liste2)
-                                            
-                                    # Affiche l'image
-                                    #new_image.show()
-                                    #draw_polygon_pil(liste,(300,300),"black","black")
+                                    # Calcul des polygones en reliant les points les plus proches
+                                    visited = set()
+                                    polygons2 = []
+                                    for point in ordered_points2:
+                                        if point not in visited:
+                                            # Trouver les points les plus proches pour créer un polygone
+                                            nearest = min(ordered_points2, key=lambda p: distance(point, p))
+                                            polygon = [point, nearest]
+                                            polygons2.append(polygon)
+                                            visited.update(polygon)
+                                    counter2 = 1
+                                    #for ordered_points2 in polygons2:
+                                        # Dessine le polygone
+                                    draw.polygon(ordered_points2, None, "black")
+                                        # Calculer le centre du polygone (par exemple en moyenne des points, méthode simplifiée)
+                                    centroid_x = sum(point[0] for point in ordered_points2) / len(ordered_points2)
+                                    centroid_y = sum(point[1] for point in ordered_points2) / len(ordered_points2)
+                                        # Ajouter un numéro sur le polygone
+                                    draw.text((centroid_x, centroid_y), str(counter2), fill="red", font=font)
+                                    counter2 += 1
+
                                 else:
                                     print("Aucune annotation de polygone trouvée.")
                     else:
@@ -219,13 +241,26 @@ def nail_page():
                         api_key="C1QXXjGrgpWRBq8uQfS7"
                     )
                     result3 = GAEL.infer("geeks.jpg", model_id="nails-diginamic-7syht/1")
-                    
+                    liste3 = []
                     if 'predictions' in result3:
                         for prediction3 in result3['predictions']:
                             confidence3 = prediction3.get('confidence', 'N/A')
                             if confidence3 > seuil: # 0.5 : 
                                 st.write(f"Confiance de la prédiction Gaël, image non traitée : {confidence3}")
-                            
+                                if 'points' in prediction3:  # Vérifiez la présence de l'annotation polygonale
+                                    points = prediction3.get('points')
+                                    for point in points:
+                                        x = point['x']
+                                        y = point['y']
+                                        liste3.append((x,y))
+                                            
+                                    ordered_points3 = sort_points_for_polygon(liste3)
+                                    draw = ImageDraw.Draw(ima)
+                                    # Dessine le polygone
+                                    draw.polygon(ordered_points3, None, "black")
+                                    
+                                else:
+                                    print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
@@ -254,8 +289,30 @@ def nail_page():
                                             
                                     ordered_points = sort_points_for_polygon(liste)
                                     draw = ImageDraw.Draw(new_image)
-                                    # Dessine le polygone
+                                    
                                     draw.polygon(ordered_points, None, "white")
+                                    
+                                    # Calcul des polygones en reliant les points les plus proches
+                                    visited = set()
+                                    polygons = []
+                                    for point in ordered_points:
+                                        if point not in visited:
+                                            # Trouver les points les plus proches pour créer un polygone
+                                            nearest = min([p for p in ordered_points if p != point], key=lambda p: distance(point, p))
+                                            polygon = [point, nearest]
+                                            polygons.append(polygon)
+                                            visited.update(polygon)
+                                    counter = 1
+                                    font = ImageFont.load_default()  # Chargement d'une police par défaut
+                                    for poly in polygons:
+                                        # Dessine le polygone
+                                        draw.polygon(poly, None, "white")
+                                        # Calculer le centre du polygone (par exemple en moyenne des points, méthode simplifiée)
+                                        centroid_x = sum(point[0] for point in poly) / len(poly)
+                                        centroid_y = sum(point[1] for point in poly) / len(poly)
+                                        # Ajouter un numéro sur le polygone
+                                        draw.text((centroid_x, centroid_y), str(counter), fill="red", font=font)
+                                        counter += 1
                                 else:
                                     print("Aucune annotation de polygone trouvée.")
                     else:
@@ -270,39 +327,29 @@ def nail_page():
                         #api_key="D7dNUce8UyrrxqFcplzH"
                         api_key="D7dNUce8UyrrxqFcplzH"
                     )
-                    result = CLIENT.infer("geeks.jpg", model_id="nails-diginamic-el24e/3")
+                    result4 = CLIENT.infer("geeks.jpg", model_id="nails-diginamic-el24e/3")
                     #st.write(result)
                     #draw = ImageDraw.Draw(new_image)
-                    #liste = []
-                    if 'predictions' in result:
-                        for prediction in result['predictions']:
-                            confidence = prediction.get('confidence', 'N/A')
-                            if confidence > seuil : #0.5:
-                                st.write(f"Confiance de la prédiction Fabrice, Image non traitée : {confidence}")
-                        #     if 'points' in prediction:  # Vérifiez la présence de l'annotation polygonale
-                        #         points = prediction.get('points')
-                        #         for point in points:
-                        #             x = point['x']
-                        #             y = point['y']
-                        #             liste.append((x,y))
-                        #         #    st.write(f"Coordonnées du point : X={x}, Y={y}")
-                        #         # Crée le polygone et l'ajoute au tracé
-                        #         #polygon = Polygon(points, closed=True, fill=True, edgecolor='blue', facecolor='lightblue', alpha=0.5)
-                        #         #draw.add_patch(polygon)
-                        # #draw.polygon(points,"black","black", 240)
-                        # #draw_polygon_pil(points,new_image,"black","black")
-                        #         #st.image(new_image, caption='Image \"processed\"', width=240)
-                        # #new_image.show()
-                                
-                        #         draw = ImageDraw.Draw(image)
-                        #         # Dessine le polygone
-                        #         draw.polygon(liste, "black", "black")
-                                
-                        #         # Affiche l'image
-                        #         #new_image.show()
-                        #         #draw_polygon_pil(liste,(300,300),"black","black")
-                        #     else:
-                        #         print("Aucune annotation de polygone trouvée.")
+                    liste4 = []
+                    if 'predictions' in result4:
+                        for prediction4 in result4['predictions']:
+                            confidence4 = prediction4.get('confidence', 'N/A')
+                            if confidence4 > seuil : #0.5:
+                                st.write(f"Confiance de la prédiction Fabrice, Image non traitée : {confidence4}")
+                                if 'points' in prediction4:  # Vérifiez la présence de l'annotation polygonale
+                                    points = prediction4.get('points')
+                                    for point in points:
+                                        x = point['x']
+                                        y = point['y']
+                                        liste4.append((x,y))
+                                            
+                                    ordered_points4 = sort_points_for_polygon(liste4)
+                                    draw = ImageDraw.Draw(ima)
+                                    # Dessine le polygone
+                                    draw.polygon(ordered_points4, None, "white")
+                                    
+                                else:
+                                    print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
@@ -311,47 +358,94 @@ def nail_page():
             # Nouveau modèle
             else:
                 try:
-                    liste = []
+                    liste5 = []
                     if 'predictions' in result:
-                        for prediction in result['predictions']:
-                            confidence = prediction.get('confidence', 'N/A')
-                            if confidence > seuil : #0.5:
+                        for prediction5 in result['predictions']:
+                            confidence5 = prediction5.get('confidence', 'N/A')
+                            if confidence5 > seuil : #0.5:
                                 if selected_option == "Modèle de GAEL":
-                                    st.write(f"Confiance de la prédiction Gaël : {confidence}")
+                                    st.write(f"Confiance de la prédiction Gaël : {confidence5}")
                                 else:
                                     if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
-                                            st.write(f"Confiance de la prédiction Fabrice : {confidence}")
+                                            st.write(f"Confiance de la prédiction Fabrice : {confidence5}")
                                     else:
                                         if selected_option == "Nouveau modèle" :
                                             if input1 and input2 :
-                                                st.write(f"Confiance de la prédiction Nouveau modèle : {confidence}")
+                                                st.write(f"Confiance de la prédiction Nouveau modèle : {confidence5}")
                                             else :
                                                 st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
-                                if 'points' in prediction:  # Vérifiez la présence de l'annotation polygonale
-                                    points = prediction.get('points')
+                                if 'points' in prediction5:  # Vérifiez la présence de l'annotation polygonale
+                                    points = prediction5.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste.append((x,y))
-                                    ordered_points = sort_points_for_polygon(liste)
+                                        liste5.append((x,y))
+                                    ordered_points = sort_points_for_polygon(liste5)
                                     draw = ImageDraw.Draw(new_image)
+                                    
                                     # Dessine le polygone
                                     if selected_option == "Modèle de GAEL":
                                         draw.polygon(ordered_points, None, "black")
+                                        
                                     else:
                                         if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
                                             draw.polygon(ordered_points, None, "white")
+                                            
                                         else:
                                             if selected_option == "Nouveau modèle":
                                                 if input1 and input2:
-                                                    draw.polygon(ordered_points, None, "gray")
+                                                    draw.polygon(ordered_points, None, "white")
+                                                    
                                                 else :
                                                     st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
                                 else:
                                     print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
-                        
+                    liste6 = []
+                    if 'predictions' in result_non_traite:
+                        for prediction6 in result_non_traite['predictions']:
+                            confidence6 = prediction6.get('confidence', 'N/A')
+                            if confidence6 > seuil : #0.5:
+                                if selected_option == "Modèle de GAEL":
+                                    st.write(f"Confiance de la prédiction Gaël, image non traitée : {confidence6}")
+                                else:
+                                    if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
+                                            st.write(f"Confiance de la prédiction Fabrice, image non traitée : {confidence6}")
+                                    else:
+                                        if selected_option == "Nouveau modèle" :
+                                            if input1 and input2 :
+                                                st.write(f"Confiance de la prédiction Nouveau modèle, image non traitée : {confidence6}")
+                                            else :
+                                                st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
+                                if 'points' in prediction6:  # Vérifiez la présence de l'annotation polygonale
+                                    points = prediction6.get('points')
+                                    for point in points:
+                                        x = point['x']
+                                        y = point['y']
+                                        liste6.append((x,y))
+                                    ordered_points = sort_points_for_polygon(liste6)
+                                    draw = ImageDraw.Draw(ima)
+                                    
+                                    # Dessine le polygone
+                                    if selected_option == "Modèle de GAEL":
+                                        draw.polygon(ordered_points, None, "black")
+                                        
+                                    else:
+                                        if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
+                                            draw.polygon(ordered_points, None, "white")
+                                            
+                                        else:
+                                            if selected_option == "Nouveau modèle":
+                                                if input1 and input2:
+                                                    draw.polygon(ordered_points, None, "white")
+                                                    
+                                                else :
+                                                    st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
+                                else:
+                                    print("Aucune annotation de polygone trouvée.")
+                    else:
+                        st.write("Aucune prédiction trouvée.")
                 except Exception as e:
                     st.write(f"Erreur lors de l'inférence block 6 : {e}")
                     st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
@@ -361,7 +455,7 @@ def nail_page():
         
         with col2 :
             # Afficher l'image
-            st.image(image, caption='Image téléchargée')
+            st.image(ima, caption='Image téléchargée - non traitée')
             st.image(new_image, caption='Image \"processed\"')
             
             
