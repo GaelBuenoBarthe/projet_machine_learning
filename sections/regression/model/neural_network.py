@@ -4,51 +4,69 @@ import numpy as np
 import plotly.graph_objects as go
 from keras import Sequential
 from keras import layers
+from keras import regularizers
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
+from scikeras.wrappers import KerasRegressor
+
+
+
+l2 = keras.regularizers.l2
+Dense = keras.layers.Dense
+Adam = keras.optimizers.Adam
 
 # Fonction pour charger et préparer les données
-def load_and_preprocess_data(file_path, test_size=0.3):
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# Fonction pour charger et préparer les données
+def load_and_preprocess_data(file_path, test_size=0.2):
     df = pd.read_csv(file_path)
 
-    X = df.drop(columns='target')
+    # Séparer les features et la target
+    X = df.drop(columns=['target'])
     y = df['target']
 
+    # Séparation des données en jeux d'entraînement et de test
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-
-    smote = SMOTE(random_state=42)
-    X_train_res, y_train_res = smote.fit_resample(X_train_scaled, y_train)
-
-    return X_train_res, X_test_scaled, y_train_res, y_test
+    return X_train, X_test, y_train, y_test
 
 
-# Fonction pour construire et entraîner le modèle
-def build_and_train_nn(X_train, y_train, hidden_layers, neurons_per_layer, epochs, batch_size, learning_rate):
-    model = Sequential()
+# Fonction pour construire et entraîner le modèle avec régularisation L2 et Dropout
+def build_and_train_nn(X_train, y_train, X_val, y_val, layers, neurons_per_layer, max_iter, batch_size, learning_rate, progress_bar):
+    input_dim = X_train.shape[1]
+    model = create_keras_model(layers, neurons_per_layer, learning_rate, input_dim)()
+    r2_history = []
 
-    model.add(layers.Dense(neurons_per_layer, input_dim=X_train.shape[1], activation='relu'))
+    class R2History(keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            y_pred = self.model.predict(X_val).flatten()
+            r2 = r2_score(y_val, y_pred)
+            r2_history.append(r2)
+            progress_bar.progress((epoch + 1) / max_iter)
 
-    for _ in range(hidden_layers - 1):
-        model.add(layers.Dense(neurons_per_layer, activation='relu'))
+    history = model.fit(X_train, y_train, epochs=max_iter, batch_size=batch_size, verbose=1, validation_data=(X_val, y_val), callbacks=[R2History()])
+    return model, history, r2_history
 
-    model.add(layers.Dense(1))
-
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate), loss='mean_squared_error')
-
-    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2, verbose=0)
-
-    return model, history
-
+# Fonction pour créer le modèle Keras
+def create_keras_model(layers, neurons_per_layer, learning_rate, input_dim):
+    def model_fn():
+        model = Sequential()
+        for i in range(layers):
+            if i == 0:
+                model.add(Dense(neurons_per_layer[i], input_dim=input_dim, activation='relu'))
+            else:
+                model.add(Dense(neurons_per_layer[i], activation='relu'))
+        model.add(Dense(1, activation='linear'))
+        model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mean_squared_error')
+        return model
+    return model_fn
 
 # Fonction pour dessiner la structure du réseau de neurones
 def draw_nn(layers, neurons_per_layer):
-    import plotly.graph_objects as go
-
     fig = go.Figure()
 
     # Positionner les neurones

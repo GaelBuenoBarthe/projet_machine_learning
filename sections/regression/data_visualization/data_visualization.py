@@ -15,8 +15,6 @@ def visualize_data(file_path):
     # Affichage des informations générales sur les données
     st.write(f"Nombre de lignes : {df.shape[0]}")
     st.write(f"Nombre de colonnes : {df.shape[1]}")
-    st.write("Colonnes : ", df.columns)
-    st.write(df.info())
     st.write(df.describe())
 
 

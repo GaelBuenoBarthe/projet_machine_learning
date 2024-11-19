@@ -4,16 +4,16 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scikeras.wrappers import KerasRegressor
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
 from sklearn.neural_network import MLPRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.datasets import make_regression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sections.regression.data_management.data_management import load_and_preprocess_data
 from sections.regression.data_visualization.data_visualization import visualize_preprocessed_data, visualize_data
 from sections.regression.model.model import train_and_evaluate_models, get_model
-from sections.regression.model.neural_network import draw_nn
-
+from sections.regression.model.neural_network import draw_nn, build_and_train_nn, load_and_preprocess_data, create_keras_model
 
 
 def regression_page():
@@ -164,53 +164,28 @@ def model_training_page():
 def neural_network_page():
     st.title("Réseau de Neurones Interactif")
 
-    # Générer des données artificielles
-    X, y = make_regression(n_samples=500, n_features=10, noise=10, random_state=42)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Paramètres dynamiques
     layers = st.slider("Nombre de couches", min_value=2, max_value=10, value=3)
     neurons_per_layer = [st.slider(f"Neurones dans la couche {i+1}", 2, 20, 5) for i in range(layers)]
-    learning_rate = st.slider("Taux d'apprentissage (learning rate)", 0.001, 0.1, 0.01, step=0.001)
+    learning_rate = st.slider("Taux d'apprentissage (learning rate)", 0.001, 0.1, 0.001, step=0.001)
     max_iter = st.slider("Nombre d'itérations", 10, 500, 100, step=10)
 
-    # Afficher le réseau
+    file_path = "data/diabete.csv"
+    X_train_res, X_test_scaled, y_train_res, y_test = load_and_preprocess_data(file_path)
+    X_train, X_val, y_train, y_val = train_test_split(X_train_res, y_train_res, test_size=0.2, random_state=42)
+
     fig = draw_nn(range(layers), neurons_per_layer)
     st.plotly_chart(fig)
 
-    # Entraînement du modèle
     st.write("Entraînement du modèle en cours...")
     progress_bar = st.progress(0)
 
-    model = MLPRegressor(
-        hidden_layer_sizes=tuple(neurons_per_layer),
-        learning_rate_init=learning_rate,
-        max_iter=1,  # Itérations par étape
-        warm_start=True,  # Conserver les paramètres pour continuer l'entraînement
-        random_state=42
+    model, history, r2_history = build_and_train_nn(
+        X_train, y_train, X_val, y_val, layers, neurons_per_layer, max_iter, 32, learning_rate, progress_bar
     )
-
-    train_losses = []
-    test_r2_scores = []
-
-    for i in range(max_iter):
-        model.fit(X_train, y_train)
-        y_pred_train = model.predict(X_train)
-        y_pred_test = model.predict(X_test)
-
-        # Suivi des métriques
-        train_loss = mean_squared_error(y_train, y_pred_train)
-        test_r2 = r2_score(y_test, y_pred_test)
-
-        train_losses.append(train_loss)
-        test_r2_scores.append(test_r2)
-
-        progress_bar.progress((i + 1) / max_iter)
 
     st.success("Entraînement terminé !")
 
-    # Résultats finaux
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_test_scaled).flatten()
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
@@ -219,17 +194,21 @@ def neural_network_page():
     st.write(f"MSE : {mse:.4f}")
     st.write(f"MAE : {mae:.4f}")
 
-    # Courbe d'apprentissage
-    fig, ax = plt.subplots()
-    ax.plot(train_losses, label="Perte (loss) - Entraînement")
-    ax.plot(test_r2_scores, label="R² - Test")
-    ax.set_title("Courbe d'apprentissage")
-    ax.set_xlabel("Itérations")
-    ax.set_ylabel("Metrics")
-    ax.legend()
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel("Itérations")
+    ax1.set_ylabel("Loss", color="tab:blue")
+    ax1.plot(history.history['loss'], label="Perte (loss) - Entraînement", color="tab:blue")
+    ax1.tick_params(axis="y", labelcolor="tab:blue")
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel("R²", color="tab:orange")
+    ax2.plot(r2_history, label="R² - Validation", color="tab:orange")
+    ax2.tick_params(axis="y", labelcolor="tab:orange")
+
+    fig.tight_layout()
+    fig.legend(loc="upper right")
     st.pyplot(fig)
 
-    # Scatter plot : prédictions vs réalité
     fig, ax = plt.subplots()
     ax.scatter(y_test, y_pred, alpha=0.7)
     ax.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')
@@ -238,11 +217,7 @@ def neural_network_page():
     ax.set_ylabel("Prédictions (y_pred)")
     st.pyplot(fig)
 
-    # Histogramme des résidus
-    residuals = y_test - y_pred
-    fig, ax = plt.subplots()
-    ax.hist(residuals, bins=20, alpha=0.7, color='blue', edgecolor='black')
-    ax.set_title("Distribution des résidus")
-    ax.set_xlabel("Résidus")
-    ax.set_ylabel("Fréquence")
-    st.pyplot(fig)
+    input_dim = X_train_res.shape[1]
+    model = KerasRegressor(model=create_keras_model(layers, neurons_per_layer, learning_rate, input_dim), epochs=max_iter, batch_size=32, verbose=1)
+    cross_val = cross_val_score(model, X_train_res, y_train_res, cv=5, scoring="neg_mean_squared_error")
+    st.write(f"Validation croisée MSE moyen : {-cross_val.mean():.4f}")
