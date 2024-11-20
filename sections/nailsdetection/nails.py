@@ -46,6 +46,41 @@ def sort_points_for_polygon(points):
         current_point = closest_point
     return ordered_points
 
+def polygon_barycenter(points):
+    """
+    Calcul du barycentre (centre moyen) des sommets du polygone.
+    :param points: Liste de tuples représentant les sommets du polygone (x, y).
+    :return: Tuple représentant les coordonnées du barycentre (Cx, Cy).
+    """
+    n = len(points)
+    Cx = sum(x for x, y in points) / n
+    Cy = sum(y for x, y in points) / n
+    return (Cx, Cy)
+
+def polygon_centroid(points):
+    # points is a list of tuples (x, y)
+    n = len(points)
+    area = 0
+    Cx = 0
+    Cy = 0
+
+    for i in range(n):
+        x0, y0 = points[i]
+        x1, y1 = points[(i + 1) % n]  # Ensure the last point connects to the first
+        cross_product = x0 * y1 - x1 * y0
+        area += cross_product
+        Cx += (x0 + x1) * cross_product
+        Cy += (y0 + y1) * cross_product
+
+    area = abs(area) / 2
+    if area != 0:
+        Cx = Cx / (6 * area)
+        Cy = Cy / (6 * area)
+    else:
+        return polygon_barycenter(points)
+    
+    return (Cx, Cy)
+
 def nail_page():
     st.header("Bienvenue")
     st.caption("Bienvenue dans la détection d'ongle")
@@ -221,11 +256,11 @@ def nail_page():
                                         # Dessine le polygone
                                     draw.polygon(ordered_points2, None, "black")
                                         # Calculer le centre du polygone (par exemple en moyenne des points, méthode simplifiée)
-                                    centroid_x = sum(point[0] for point in ordered_points2) / len(ordered_points2)
-                                    centroid_y = sum(point[1] for point in ordered_points2) / len(ordered_points2)
-                                        # Ajouter un numéro sur le polygone
-                                    draw.text((centroid_x, centroid_y), str(counter2), fill="red", font=font)
-                                    counter2 += 1
+                                    # centroid_x = sum(point[0] for point in ordered_points2) / len(ordered_points2)
+                                    # centroid_y = sum(point[1] for point in ordered_points2) / len(ordered_points2)
+                                    #     # Ajouter un numéro sur le polygone
+                                    # draw.text((centroid_x, centroid_y), str(counter2), fill="red", font=font)
+                                    # counter2 += 1
 
                                 else:
                                     print("Aucune annotation de polygone trouvée.")
@@ -290,7 +325,7 @@ def nail_page():
                                     ordered_points = sort_points_for_polygon(liste)
                                     draw = ImageDraw.Draw(new_image)
                                     
-                                    draw.polygon(ordered_points, None, "white")
+                                    #draw.polygon(ordered_points, None, "white")
                                     
                                     # Calcul des polygones en reliant les points les plus proches
                                     visited = set()
@@ -304,15 +339,16 @@ def nail_page():
                                             visited.update(polygon)
                                     counter = 1
                                     font = ImageFont.load_default()  # Chargement d'une police par défaut
-                                    for poly in polygons:
+                                    for points in polygons:
                                         # Dessine le polygone
-                                        draw.polygon(poly, None, "white")
+                                        draw.polygon(points, None, "white")
                                         # Calculer le centre du polygone (par exemple en moyenne des points, méthode simplifiée)
-                                        centroid_x = sum(point[0] for point in poly) / len(poly)
-                                        centroid_y = sum(point[1] for point in poly) / len(poly)
+                                        #centroid_x = sum(point[0] for point in points) / len(points)
+                                        #centroid_y = sum(point[1] for point in points) / len(points)
+                                        centroid = polygon_centroid(points)
                                         # Ajouter un numéro sur le polygone
-                                        draw.text((centroid_x, centroid_y), str(counter), fill="red", font=font)
-                                        counter += 1
+                                        draw.text(centroid, str(counter+1), fill="red")
+                                        #counter += 1
                                 else:
                                     print("Aucune annotation de polygone trouvée.")
                     else:
