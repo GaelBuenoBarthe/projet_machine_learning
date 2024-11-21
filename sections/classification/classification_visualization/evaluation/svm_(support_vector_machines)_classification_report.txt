@@ -1,0 +1,9 @@
+               precision    recall  f1-score   support
+
+     Vin amer       1.00      1.00      1.00        59
+    Vin sucré       0.98      1.00      0.99        48
+Vin équilibré       1.00      0.99      0.99        71
+
+     accuracy                           0.99       178
+    macro avg       0.99      1.00      0.99       178
+ weighted avg       0.99      0.99      0.99       178
