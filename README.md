@@ -43,7 +43,7 @@ To set up the project locally, follow these steps:
 
 The project is organized as follows:
 
-    ```bash
+```bash
 ├── data
 │   ├── diabete.csv                # Dataset file for regression
 │   └── wine.csv                   # Dataset file for classification
@@ -67,7 +67,7 @@ The project is organized as follows:
 ├── .gitignore                     # Git ignore file
 ├── requirements.txt               # Python dependencies
 └── README.md                      # Project documentation
-    ```
+```
 ## Usage
 
 To run the Streamlit application, use the following command:
