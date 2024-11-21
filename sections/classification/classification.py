@@ -72,31 +72,65 @@ def classification_page():
                 except Exception as e:
                     st.error(f"Erreur lors de l'application de SMOTE : {str(e)}")
 
+
     elif page == "Sélection des features":
+
         # Sélection des fonctionnalités après SMOTE
+
         if 'df_resampled' in st.session_state and st.session_state.df_resampled is not None:
+
             st.write("Vérification des données disponibles :")
+
             st.write(st.session_state.df_resampled.head())  # Affiche les premières lignes du DataFrame rééchantillonné
 
             if st.button("Démarrer la sélection des features"):
+
                 try:
-                    # Appel à la fonction de sélection des features
-                    df_reduced, k_best_features = feature_selection(st.session_state.df_resampled)
 
-                    # Affichage des résultats après sélection des fonctionnalités
-                    st.write("Données après sélection des fonctionnalités :")
-                    st.write(df_reduced.head())  # Affiche les premières lignes du DataFrame après la sélection
+                    # Vérifier que la colonne cible existe
 
-                    # Affichage des meilleures fonctionnalités sélectionnées
-                    st.write("Les meilleures fonctionnalités sélectionnées :")
-                    st.write(k_best_features)  # Affiche les meilleures fonctionnalités
+                    if 'target' not in st.session_state.df_resampled.columns:
+
+                        st.error("La colonne 'target' est absente des données rééchantillonnées.")
+
+                    else:
+
+                        # Appel à la fonction de sélection des features
+
+                        df_reduced, k_best_features = feature_selection(
+
+                            st.session_state.df_resampled,  # Assurez-vous que le DataFrame est passé ici
+
+                            output_dir="sections/classification/classification_visualization/feature_selection"
+
+                        )
+
+                        # Affichage des résultats après sélection des fonctionnalités
+
+                        st.write("Données après sélection des fonctionnalités :")
+
+                        st.write(df_reduced.head())  # Affiche les premières lignes du DataFrame après la sélection
+
+                        # Affichage des meilleures fonctionnalités sélectionnées
+
+                        st.write("Les meilleures fonctionnalités sélectionnées :")
+
+                        st.write(k_best_features)  # Affiche les meilleures fonctionnalités
+
 
                 except Exception as e:
+
                     # Gestion des erreurs et affichage d'un message d'erreur
+
                     st.error(f"Erreur lors de la sélection des fonctionnalités : {e}")
+
         else:
+
             # Si les données rééchantillonnées ne sont pas disponibles
-            st.error("Les données rééchantillonnées (df_resampled) ne sont pas disponibles. Veuillez revenir à l'étape SMOTE.")
+
+            st.error(
+                "Les données rééchantillonnées (df_resampled) ne sont pas disponibles. Veuillez revenir à l'étape SMOTE.")
+
 
 # Exécution de l'application
 if __name__ == "__main__":

@@ -4,13 +4,14 @@ import matplotlib.pyplot as plt
 from sklearn.feature_selection import SelectKBest, f_classif
 import os
 
-def feature_selection(data_file, output_dir="sections/classification/classification_visualization/feature_selection",
+
+def feature_selection(df, output_dir="sections/classification/classification_visualization/feature_selection",
                       threshold=0.8, k_best=5):
     """
     Sélection des features à partir des données nettoyées et prétraitées.
 
     Arguments:
-    - data_file: Chemin du fichier CSV contenant les données prétraitées.
+    - df: DataFrame contenant les données nettoyées et prétraitées.
     - output_dir: Répertoire pour sauvegarder les visualisations.
     - threshold: Seuil de corrélation pour filtrer les variables fortement corrélées.
     - k_best: Nombre de meilleures features à sélectionner avec ANOVA.
@@ -20,13 +21,9 @@ def feature_selection(data_file, output_dir="sections/classification/classificat
     - k_best_features: Liste des meilleures features sélectionnées par ANOVA.
     """
 
-    # Lire le fichier CSV contenant les données nettoyées et prétraitées
-    df = pd.read_csv(data_file)
-
     # Vérifier si la colonne cible 'target' existe
     if 'target' not in df.columns:
         raise ValueError("La colonne 'target' est absente du jeu de données.")
-
     print(f"Colonnes disponibles dans le DataFrame : {df.columns}")
 
     # 1. Sélection des features par corrélation
@@ -54,9 +51,17 @@ def feature_selection(data_file, output_dir="sections/classification/classificat
     print(f"Matrice de corrélation sauvegardée sous : {heatmap_path}")
     plt.close()
 
+    # Vérification de la matrice de corrélation
+    print(f"Shape de la matrice de corrélation : {corr_matrix.shape}")
+    print(f"Quelques valeurs de la matrice de corrélation :\n{corr_matrix.head()}")
+
     # Identification des paires fortement corrélées
     print("Recherche des corrélations élevées...")
+
+    # Utilisation de stack pour transformer la matrice en Series et filtrer les corrélations élevées
     high_corr_pairs = corr_matrix.where((abs(corr_matrix) > threshold) & (corr_matrix != 1)).stack()
+    print(f"Type de high_corr_pairs : {type(high_corr_pairs)}")
+    print(f"Nombre de paires de corrélation élevée : {len(high_corr_pairs)}")
 
     # Si des paires sont trouvées, les afficher et réduire les features
     if not high_corr_pairs.empty:
@@ -126,5 +131,5 @@ def feature_selection(data_file, output_dir="sections/classification/classificat
     print(f"Graphique des scores ANOVA sauvegardé sous : {anova_barplot_path}")
     plt.close()
 
-    # Retourner les résultats
-    return df_reduced, k_best_features
+    # Retourner les résultats : DataFrame réduit et liste des meilleures features sélectionnées
+    return df_reduced, k_best_features.tolist()  # Conversion en liste explicite

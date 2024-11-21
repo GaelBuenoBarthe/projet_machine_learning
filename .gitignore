@@ -1,2 +1,6 @@
-/venv
-/.git
+.venv/
+.idea/
+*.pyc
+*.pyo
+__pycache__/
+pyvenv.cfg
