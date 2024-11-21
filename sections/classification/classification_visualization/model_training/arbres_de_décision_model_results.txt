@@ -1,0 +1,11 @@
+Précision du modèle Arbres de Décision : 91.67%
+Rapport de classification :
+               precision    recall  f1-score   support
+
+     Vin amer       0.93      0.93      0.93        14
+    Vin sucré       0.88      0.88      0.88         8
+Vin équilibré       0.93      0.93      0.93        14
+
+     accuracy                           0.92        36
+    macro avg       0.91      0.91      0.91        36
+ weighted avg       0.92      0.92      0.92        36
