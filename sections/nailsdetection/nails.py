@@ -81,40 +81,33 @@ def polygon_centroid(points):
     
     return (Cx, Cy)
 
+
 def nail_page():
     st.header("Bienvenue")
     st.caption("Bienvenue dans la détection d'ongle")
-    #container = st.container(border=True)
-    
-    c1, _ = st.columns([4,2], vertical_alignment="center")
-    
-    # with c1 : Raccourcir les barres de choix du modèle puis de l'image
+
+    c1, _ = st.columns([4, 2])
+
     with c1:
-        # Choix des modèles
-        options = ["Modèle de GAEL", "Modèle basique de Fabrice", "Modèle avancé de Fabrice", "Superposer les modèles", "Nouveau modèle"]
-        
-        # Créer une liste déroulante
+        options = ["Modèle de GAEL", "Modèle basique de Fabrice", "Modèle avancé de Fabrice", "Superposer les modèles",
+                   "Nouveau modèle"]
         selected_option = st.selectbox("Choisissez un modèle :", options)
-        if selected_option == "Nouveau modèle": 
-            # Champ de saisie 1
+
+        if selected_option == "Nouveau modèle":
             input1 = st.text_input("Entrez l'api_key de Robotflow :", key="premier bouton")
-            # Champ de saisie 2
-            input2 = st.text_input("Entrez le model_id de Robotflow :", key = "second bouton")
-        
-        # Création d'un bouton radio pour confiance de la prédiction
+            input2 = st.text_input("Entrez le model_id de Robotflow :", key="second bouton")
+
         choice = st.radio(
             "Choisissez un seuil en pourcentage pour la confiance de prédiction :",
-            ("Pas de seuil","50%", "60%", "70%", "80%", "85%", "90%")
+            ("Pas de seuil", "50%", "60%", "70%", "80%", "85%", "90%")
         )
 
-        # Logique basée sur le choix
-        if choice == "Pas de seuil":
-            seuil = 0
+        seuil = 0
         if choice == "50%":
             seuil = 0.5
         elif choice == "60%":
             seuil = 0.6
-        elif choice =="70%":
+        elif choice == "70%":
             seuil = 0.7
         elif choice == "80%":
             seuil = 0.8
@@ -122,106 +115,72 @@ def nail_page():
             seuil = 0.85
         elif choice == "90%":
             seuil = 0.9
-        
-        # Créez un uploader pour les fichiers
+
         uploaded_file = st.file_uploader("Choisissez une image", type=["png", "jpg", "jpeg"])
-    
-    col1, col2 = st.columns(2, vertical_alignment="center")
-    
-    # Vérifiez si un fichier a été téléchargé
+
+    col1, col2 = st.columns(2)
+
     if uploaded_file is not None:
-        # Ouvrir l'image avec PIL
         ima = Image.open(uploaded_file)
         image = ima
-            #im1 = processed_image_path
-            # save a image using extension
         im_non_traitee = image.save("sections/nailsdetection/pictures/geeks.jpg")
-            
-        with col1 :
-        
-            ## TRAITEMENT GAEL   
-            # Orientation automatique de l'image
+
+        with col1:
             image = ImageOps.exif_transpose(image)
-
-            # Taille cible de l'image
             target_size = (340, 340)
-
-            # Calcule le ratio de redimensionnement
             ratio = min(target_size[0] / image.width, target_size[1] / image.height)
-
-            # Calcule la nouvelle taille de l'image
             new_size = (int(image.width * ratio), int(image.height * ratio))
-
-            # Redimensionne l'image
             image = image.resize(new_size, Image.LANCZOS)
-
-            # Crée une nouvelle image noire de la taille cible
             new_image = Image.new('L', target_size, 'black')
-
-            # Calcule la position pour centrer l'image redimensionnée dans le nouveau fond noir
             left = (target_size[0] - new_size[0]) // 2
             top = (target_size[1] - new_size[1]) // 2
-
-            # cole la photo redimensionnée dans le nouveau fond noir
             new_image.paste(image, (left, top))
-
-            # Enregistre et traite l'image
             processed_image_path = 'sections/nailsdetection/pictures/IMG_2075_processed.jpg'
             new_image.save(processed_image_path)
-
-            # Verification de la taille de sortie de l'image
-            print(f"format de sortie: {new_image.size}")
-
-            # Conversion en noir et blanc grayscale
             new_image = new_image.convert("L")
-
-            # Sauvegarde de l'image traitée
-            processed_image_path = "sections/nailsdetection/pictures/IMG_2075_processed.jpg"
             new_image.save(processed_image_path)
 
-            try: 
-                # initialiser le client robotflow
+            try:
                 if selected_option == "Modèle de GAEL":
                     GAEL = InferenceHTTPClient(
-                                api_url="https://detect.roboflow.com",
-                                api_key="C1QXXjGrgpWRBq8uQfS7"
-                            )
+                        api_url="https://detect.roboflow.com",
+                        api_key="C1QXXjGrgpWRBq8uQfS7"
+                    )
                     result = GAEL.infer(processed_image_path, model_id="nails-diginamic-7syht/1")
-                    result_non_traite = GAEL.infer("sections/nailsdetection/pictures/geeks.jpg", model_id="nails-diginamic-7syht/1")
-                else:
-                    if selected_option == "Modèle basique de Fabrice":
-                        CLIENT = InferenceHTTPClient(
-                                api_url="https://detect.roboflow.com",
-                                api_key="D7dNUce8UyrrxqFcplzH"
-                            )
-                        result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/2")
-                        result_non_traite = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg", model_id="nails-diginamic-el24e/2")
-                    else:
-                        if selected_option == "Modèle avancé de Fabrice":
-                            CLIENT = InferenceHTTPClient(
-                                api_url="https://detect.roboflow.com",
-                                api_key="D7dNUce8UyrrxqFcplzH"
-                            )
-                            result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/3")
-                            result_non_traite = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg", model_id="nails-diginamic-el24e/3")
-                        else:
-                            if selected_option == "Nouveau modèle" and input1 and input2:
-                                CLIENT = InferenceHTTPClient(
-                                api_url="https://detect.roboflow.com",
-                                api_key= input1
-                                )
-                                result = CLIENT.infer(processed_image_path, model_id= input2)
-                                result_non_traite = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg", model_id= input2)
+                    result_non_traite = GAEL.infer("sections/nailsdetection/pictures/geeks.jpg",
+                                                   model_id="nails-diginamic-7syht/1")
+                elif selected_option == "Modèle basique de Fabrice":
+                    CLIENT = InferenceHTTPClient(
+                        api_url="https://detect.roboflow.com",
+                        api_key="D7dNUce8UyrrxqFcplzH"
+                    )
+                    result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/2")
+                    result_non_traite = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg",
+                                                     model_id="nails-diginamic-el24e/2")
+                elif selected_option == "Modèle avancé de Fabrice":
+                    CLIENT = InferenceHTTPClient(
+                        api_url="https://detect.roboflow.com",
+                        api_key="D7dNUce8UyrrxqFcplzH"
+                    )
+                    result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/3")
+                    result_non_traite = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg",
+                                                     model_id="nails-diginamic-el24e/3")
+                elif selected_option == "Nouveau modèle" and input1 and input2:
+                    CLIENT = InferenceHTTPClient(
+                        api_url="https://detect.roboflow.com",
+                        api_key=input1
+                    )
+                    result = CLIENT.infer(processed_image_path, model_id=input2)
+                    result_non_traite = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg", model_id=input2)
             except Exception as e:
-                st.write(f"Erreur lors de l'inférence block 1 : {e}, si Nouveau modèle, entrer les deux valeurs d'input")
-                
-            if selected_option == "Superposer les modèles":    
-                # Perform inference / Image traitée
+                st.write(
+                    f"Erreur lors de l'inférence block 1 : {e}, si Nouveau modèle, entrer les deux valeurs d'input")
+
+            if selected_option == "Superposer les modèles":
                 counter = 1
-                
                 try:
-                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"  # Remplacez par le chemin de la police sur votre système
-                    font = ImageFont.truetype(font_path, size=30)  # Taille de la police définie à 30
+                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"
+                    font = ImageFont.truetype(font_path, size=30)
                     GAEL = InferenceHTTPClient(
                         api_url="https://detect.roboflow.com",
                         api_key="C1QXXjGrgpWRBq8uQfS7"
@@ -231,268 +190,208 @@ def nail_page():
                     if 'predictions' in result2:
                         for prediction2 in result2['predictions']:
                             confidence2 = prediction2.get('confidence', 'N/A')
-                            if confidence2 > seuil : #0.5:
+                            if confidence2 > seuil:
                                 st.write(f"Confiance de la prédiction Gaël : {confidence2}, Numéro : {counter}")
-                                if 'points' in prediction2:  # Vérifiez la présence de l'annotation polygonale
+                                if 'points' in prediction2:
                                     points = prediction2.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste2.append((x,y))
-                                            
+                                        liste2.append((x, y))
                                     ordered_points2 = sort_points_for_polygon(liste2)
                                     draw = ImageDraw.Draw(new_image)
-                                    font = ImageFont.load_default()  # Chargement d'une police par défaut
-                                    
-                                    # Calcul des polygones en reliant les points les plus proches
-                                    visited = set()
-                                    polygons2 = []
-                                    for point in ordered_points2:
-                                        if point not in visited:
-                                            # Trouver les points les plus proches pour créer un polygone
-                                            nearest = min(ordered_points2, key=lambda p: distance(point, p))
-                                            polygon = [point, nearest]
-                                            polygons2.append(polygon)
-                                            visited.update(polygon)
-                                   
-                                        # Dessine le polygone
+                                    font = ImageFont.load_default()
                                     draw.polygon(ordered_points2, None, "black")
-                                    
-                                    draw.text((prediction2['x'],prediction2['y']), str(counter), fill="black", font=font)
+                                    draw.text((prediction2['x'], prediction2['y']), str(counter), fill="black",
+                                              font=font)
                                     counter += 1
-
-                                else:
-                                    print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
                     st.write(f"Erreur lors de l'inférence block 2 : {e}")
-                
-                #Image non traitée
+
                 try:
-                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"  # Remplacez par le chemin de la police sur votre système
-                    font = ImageFont.truetype(font_path, size=30)  # Taille de la police définie à 30
+                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"
+                    font = ImageFont.truetype(font_path, size=30)
                     GAEL = InferenceHTTPClient(
                         api_url="https://detect.roboflow.com",
                         api_key="C1QXXjGrgpWRBq8uQfS7"
                     )
-                    result3 = GAEL.infer("sections/nailsdetection/pictures/geeks.jpg", model_id="nails-diginamic-7syht/1")
+                    result3 = GAEL.infer("sections/nailsdetection/pictures/geeks.jpg",
+                                         model_id="nails-diginamic-7syht/1")
                     liste3 = []
                     if 'predictions' in result3:
                         for prediction3 in result3['predictions']:
                             confidence3 = prediction3.get('confidence', 'N/A')
-                            if confidence3 > seuil: # 0.5 : 
-                                st.write(f"Confiance de la prédiction Gaël, image non traitée : {confidence3}, Numéro : {counter}")
-                                if 'points' in prediction3:  # Vérifiez la présence de l'annotation polygonale
+                            if confidence3 > seuil:
+                                st.write(
+                                    f"Confiance de la prédiction Gaël, image non traitée : {confidence3}, Numéro : {counter}")
+                                if 'points' in prediction3:
                                     points = prediction3.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste3.append((x,y))
-                                            
+                                        liste3.append((x, y))
                                     ordered_points3 = sort_points_for_polygon(liste3)
                                     draw = ImageDraw.Draw(ima)
-                                    # Dessine le polygone
                                     draw.polygon(ordered_points3, None, "black")
-                                    draw.text((prediction3['x'],prediction3['y']), str(counter), fill="black", font=font)
+                                    draw.text((prediction3['x'], prediction3['y']), str(counter), fill="black",
+                                              font=font)
                                     counter += 1
-                                else:
-                                    print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
                     st.write(f"Erreur lors de l'inférence block 3 : {e}")
-                
-                # Perform inference : Image traitée, autre robotflow
+
                 try:
-                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"  # Remplacez par le chemin de la police sur votre système
-                    font = ImageFont.truetype(font_path, size=30)  # Taille de la police définie à 30
+                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"
+                    font = ImageFont.truetype(font_path, size=30)
                     CLIENT = InferenceHTTPClient(
                         api_url="https://detect.roboflow.com",
-                        #api_key="D7dNUce8UyrrxqFcplzH"
                         api_key="D7dNUce8UyrrxqFcplzH"
                     )
-                    result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/3") #nails-diginamic-el24e/2")
+                    result = CLIENT.infer(processed_image_path, model_id="nails-diginamic-el24e/3")
                     liste = []
-                    #st.write(result)
                     if 'predictions' in result:
                         for prediction in result['predictions']:
                             confidence = prediction.get('confidence', 'N/A')
                             st.write(f"Confiance de la prédiction Fabrice : {confidence}, Numéro {counter} ")
-                            if confidence > seuil : #0.5:
-                                if 'points' in prediction:  # Vérifiez la présence de l'annotation polygonale
+                            if confidence > seuil:
+                                if 'points' in prediction:
                                     points = prediction.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste.append((x,y))
-                                            
+                                        liste.append((x, y))
                                     ordered_points = sort_points_for_polygon(liste)
                                     draw = ImageDraw.Draw(new_image)
-                                    
                                     draw.polygon(ordered_points, None, "white")
-                                      
-                                    draw.text((prediction['x'],prediction['y']), str(counter), fill="white", font=font)
+                                    draw.text((prediction['x'], prediction['y']), str(counter), fill="white", font=font)
                                     counter += 1
-                                else:
-                                    print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
                     st.write(f"Erreur lors de l'inférence block 4 : {e}")
-                        
-                # Perform inference : Image non traitée, autre robotflow
+
                 try:
-                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"  # Remplacez par le chemin de la police sur votre système
-                    font = ImageFont.truetype(font_path, size=30)  # Taille de la police définie à 30
+                    font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"
+                    font = ImageFont.truetype(font_path, size=30)
                     CLIENT = InferenceHTTPClient(
                         api_url="https://detect.roboflow.com",
-                        #api_key="D7dNUce8UyrrxqFcplzH"
                         api_key="D7dNUce8UyrrxqFcplzH"
                     )
-                    result4 = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg", model_id="nails-diginamic-el24e/3")
-                    #st.write(result)
-                    #draw = ImageDraw.Draw(new_image)
+                    result4 = CLIENT.infer("sections/nailsdetection/pictures/geeks.jpg",
+                                           model_id="nails-diginamic-el24e/3")
                     liste4 = []
                     if 'predictions' in result4:
                         for prediction4 in result4['predictions']:
                             confidence4 = prediction4.get('confidence', 'N/A')
-                            if confidence4 > seuil : #0.5:
-                                st.write(f"Confiance de la prédiction Fabrice, Image non traitée : {confidence4}, Numéro {counter} ")
-                                if 'points' in prediction4:  # Vérifiez la présence de l'annotation polygonale
+                            if confidence4 > seuil:
+                                st.write(
+                                    f"Confiance de la prédiction Fabrice, Image non traitée : {confidence4}, Numéro {counter} ")
+                                if 'points' in prediction4:
                                     points = prediction4.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste4.append((x,y))
-                                            
+                                        liste4.append((x, y))
                                     ordered_points4 = sort_points_for_polygon(liste4)
                                     draw = ImageDraw.Draw(ima)
-                                    # Dessine le polygone
-                                    
                                     draw.polygon(ordered_points4, None, "white")
-                                      
-                                    draw.text((prediction4['x'],prediction4['y']), str(counter), fill="white", font=font)
+                                    draw.text((prediction4['x'], prediction4['y']), str(counter), fill="white",
+                                              font=font)
                                     counter += 1
-                                    
-                                else:
-                                    print("Aucune annotation de polygone trouvée.")
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
                     st.write(f"Erreur lors de l'inférence block 5 : {e}")
-            
-            # Nouveau modèle
+
             else:
                 counter = 1
-                font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"  # Remplacez par le chemin de la police sur votre système
-                font = ImageFont.truetype(font_path, size=30)  # Taille de la police définie à 30
+                font_path = "sections/nailsdetection/font/Roboto-Bold.ttf"
+                font = ImageFont.truetype(font_path, size=30)
                 try:
                     liste5 = []
                     if 'predictions' in result:
                         for prediction5 in result['predictions']:
                             confidence5 = prediction5.get('confidence', 'N/A')
-                            if confidence5 > seuil : #0.5:
+                            if confidence5 > seuil:
                                 if selected_option == "Modèle de GAEL":
                                     st.write(f"Confiance de la prédiction Gaël : {confidence5}, Numéro : {counter}")
-                                else:
-                                    if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
-                                            st.write(f"Confiance de la prédiction Fabrice : {confidence5}, Numéro : {counter}")
-                                    else:
-                                        if selected_option == "Nouveau modèle" :
-                                            if input1 and input2 :
-                                                st.write(f"Confiance de la prédiction Nouveau modèle : {confidence5}, Numéro : {counter}")
-                                            else :
-                                                st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
-                                if 'points' in prediction5:  # Vérifiez la présence de l'annotation polygonale
+                                elif selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
+                                    st.write(f"Confiance de la prédiction Fabrice : {confidence5}, Numéro : {counter}")
+                                elif selected_option == "Nouveau modèle" and input1 and input2:
+                                    st.write(
+                                        f"Confiance de la prédiction Nouveau modèle : {confidence5}, Numéro : {counter}")
+                                if 'points' in prediction5:
                                     points = prediction5.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste5.append((x,y))
+                                        liste5.append((x, y))
                                     ordered_points = sort_points_for_polygon(liste5)
                                     draw = ImageDraw.Draw(new_image)
-                                    
-                                    # Dessine le polygone
                                     if selected_option == "Modèle de GAEL":
                                         draw.polygon(ordered_points, None, "black")
-                                        draw.text((prediction5['x'],prediction5['y']), str(counter), fill="black", font=font)
+                                        draw.text((prediction5['x'], prediction5['y']), str(counter), fill="black",
+                                                  font=font)
                                         counter += 1
-                                        
-                                    else:
-                                        if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
-                                            draw.polygon(ordered_points, None, "white")
-                                            draw.text((prediction5['x'],prediction5['y']), str(counter), fill="white", font=font)
-                                            counter += 1
-                                            
-                                        else:
-                                            if selected_option == "Nouveau modèle":
-                                                if input1 and input2:
-                                                    draw.polygon(ordered_points, None, "white")
-                                                    draw.text((prediction5['x'],prediction5['y']), str(counter), fill="white", font=font)
-                                                    counter += 1
-                                                else :
-                                                    st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
-                                else:
-                                    print("Aucune annotation de polygone trouvée.")
+                                    elif selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
+                                        draw.polygon(ordered_points, None, "white")
+                                        draw.text((prediction5['x'], prediction5['y']), str(counter), fill="white",
+                                                  font=font)
+                                        counter += 1
+                                    elif selected_option == "Nouveau modèle" and input1 and input2:
+                                        draw.polygon(ordered_points, None, "white")
+                                        draw.text((prediction5['x'], prediction5['y']), str(counter), fill="white",
+                                                  font=font)
+                                        counter += 1
                     else:
                         st.write("Aucune prédiction trouvée.")
                     liste6 = []
                     if 'predictions' in result_non_traite:
                         for prediction6 in result_non_traite['predictions']:
                             confidence6 = prediction6.get('confidence', 'N/A')
-                            if confidence6 > seuil : #0.5:
+                            if confidence6 > seuil:
                                 if selected_option == "Modèle de GAEL":
-                                    st.write(f"Confiance de la prédiction Gaël, image non traitée : {confidence6}, Numéro : {counter}")
-                                else:
-                                    if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
-                                            st.write(f"Confiance de la prédiction Fabrice, image non traitée : {confidence6}, Numéro : {counter}")
-                                    else:
-                                        if selected_option == "Nouveau modèle" :
-                                            if input1 and input2 :
-                                                st.write(f"Confiance de la prédiction Nouveau modèle, image non traitée : {confidence6}, Numéro : {counter}")
-                                            else :
-                                                st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
-                                if 'points' in prediction6:  # Vérifiez la présence de l'annotation polygonale
+                                    st.write(
+                                        f"Confiance de la prédiction Gaël, image non traitée : {confidence6}, Numéro : {counter}")
+                                elif selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
+                                    st.write(
+                                        f"Confiance de la prédiction Fabrice, image non traitée : {confidence6}, Numéro : {counter}")
+                                elif selected_option == "Nouveau modèle" and input1 and input2:
+                                    st.write(
+                                        f"Confiance de la prédiction Nouveau modèle, image non traitée : {confidence6}, Numéro : {counter}")
+                                if 'points' in prediction6:
                                     points = prediction6.get('points')
                                     for point in points:
                                         x = point['x']
                                         y = point['y']
-                                        liste6.append((x,y))
+                                        liste6.append((x, y))
                                     ordered_points = sort_points_for_polygon(liste6)
                                     draw = ImageDraw.Draw(ima)
-                                    
-                                    # Dessine le polygone
                                     if selected_option == "Modèle de GAEL":
                                         draw.polygon(ordered_points, None, "black")
-                                        draw.text((prediction6['x'],prediction6['y']), str(counter), fill="black", font=font)
+                                        draw.text((prediction6['x'], prediction6['y']), str(counter), fill="black",
+                                                  font=font)
                                         counter += 1
-                                    else:
-                                        if selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
-                                            draw.polygon(ordered_points, None, "white")
-                                            draw.text((prediction6['x'],prediction6['y']), str(counter), fill="white", font=font)
-                                            counter += 1
-                                        else:
-                                            if selected_option == "Nouveau modèle":
-                                                if input1 and input2:
-                                                    draw.polygon(ordered_points, None, "white")
-                                                    draw.text((prediction6['x'],prediction6['y']), str(counter), fill="white", font=font)
-                                                    counter += 1
-                                                else :
-                                                    st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
-                                else:
-                                    print("Aucune annotation de polygone trouvée.")
+                                    elif selected_option == "Modèle avancé de Fabrice" or selected_option == "Modèle basique de Fabrice":
+                                        draw.polygon(ordered_points, None, "white")
+                                        draw.text((prediction6['x'], prediction6['y']), str(counter), fill="white",
+                                                  font=font)
+                                        counter += 1
+                                    elif selected_option == "Nouveau modèle" and input1 and input2:
+                                        draw.polygon(ordered_points, None, "white")
+                                        draw.text((prediction6['x'], prediction6['y']), str(counter), fill="white",
+                                                  font=font)
+                                        counter += 1
                     else:
                         st.write("Aucune prédiction trouvée.")
                 except Exception as e:
                     st.write(f"Erreur lors de l'inférence block 6 : {e}")
-                    st.write("Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
-                    
-        # for predict in result['predictions']:        
-        #     st.write(f"Confiance : {predict.get('confidence')}")
-        
-        with col2 :
-            # Afficher l'image
+                    st.write(
+                        "Si nouveau modèle, entrer les deux inputs de Robotflow pour celui-ci avant de charger l'image")
+
+        with col2:
             st.image(ima, caption='Image téléchargée - non traitée')
-            st.image(new_image, caption='Image \"processed\"')
-            
+            st.image(new_image, caption='Image "processed"')
