@@ -1,0 +1,1 @@
+Précision du modèle SVM (Support Vector Machines) : 99.44%
